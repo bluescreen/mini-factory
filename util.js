@@ -54,3 +54,15 @@ function writeFiles(answer) {
   }
   console.log(`      ${written.join(', ')}`);
 }
+
+export function gate(command = 'npm test') {
+  const n = next();
+  const { status, stdout, stderr } = spawnSync(command, { shell: true, encoding: 'utf8' });
+  const output = `${stdout}${stderr}`.trim();
+  const pass = status === 0;
+  save(`${n}-test.json`, JSON.stringify({ phase: 'test', command, pass, output: output.slice(-2000) }, null, 2));
+  console.log(`  ${n}  CODE   ${'test'.padEnd(6)}  ${pass ? 'green' : 'red'}`);
+  return { pass, output };
+}
+
+export const rejected = (output) => `Your last attempt was rejected:\n\n${output}`;
