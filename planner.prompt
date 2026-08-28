@@ -1,0 +1,5 @@
+Goal: {{goal}}
+
+Write a short specification and implementation plan: the public API, the data
+structures, the steps, the edge cases, and which files to write.
+At most 20 lines. No code.
