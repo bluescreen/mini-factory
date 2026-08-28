@@ -1,0 +1,11 @@
+{
+  "name": "mini-fabrik",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "factory": "node factory.js",
+    "reset": "rm -rf .adw src test PLAN.md && echo 'removed: .adw src test PLAN.md'",
+    "test": "grep -q \"node:assert\" test/*.js 2>/dev/null || { echo \"no test with an assertion \u2014 a gate without cases is not a gate\"; exit 1; }; node --test --experimental-test-coverage --test-coverage-lines=60"
+  }
+}
