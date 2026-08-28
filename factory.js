@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { prompt, phase, gate, rejected, TESTS } from './util.js';
+import { prompt, phase, gate, verdict, writtenFiles, rejected, crap, TESTS } from './util.js';
 
 const goal = process.argv[2] ?? 'Implement the tennis kata';
 const GATE = process.argv[3];
 const PLANNER = 'claude-sonnet-5';
 const BUILDER = 'claude-haiku-4-5';
+const REVIEWER = 'claude-sonnet-5';
 const MAX_REPAIR_TRIES = 3;
 
 
@@ -16,7 +17,14 @@ const plan = phase('plan', PLANNER, prompt('planner.prompt', { goal }));
 phase('build', BUILDER, prompt('builder.prompt', { goal, plan, tests: TESTS }));
 
 function check() {
-  return gate(GATE);
+  const result = gate(GATE);
+  if (!result.pass) return result;
+  const review = phase('review', REVIEWER, prompt('reviewer.prompt', { goal, plan, files: writtenFiles() }));
+  const pass = !/^\s*VERDICT:\s*revise/im.test(review);
+  verdict(pass, review);
+  if (!pass) return { pass, output: review };
+  const risk = crap();
+  return risk.pass ? { pass: true, output: review } : risk;
 }
 
 let result = check();
