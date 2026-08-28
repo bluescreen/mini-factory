@@ -102,3 +102,35 @@ export function gate(command = 'npm test') {
 }
 
 export const rejected = (output) => `Your last attempt was rejected:\n\n${output}`;
+
+export const writtenFiles = () =>
+  written.map((path) => `--- ${path} ---\n${readFileSync(path, 'utf8')}`).join('\n\n');
+
+export function verdict(pass, text) {
+  const reason = text.split('\n').slice(1).find((line) => line.trim()) ?? '';
+  console.log(`      ${pass ? 'ship' : 'revise'}${reason ? ` — ${reason.trim().slice(0, 76)}` : ''}`);
+}
+
+const BRANCHES = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?|\?(?![.?])/g;
+
+export function crap() {
+  const ceiling = Number(process.env.CRAP_MAX);
+  if (!ceiling) return { pass: true, output: '' };
+  const n = next();
+  const started = Date.now();
+  const measured = spawnSync('node', ['--test', '--experimental-test-coverage'], { encoding: 'utf8', maxBuffer: 1 << 25 });
+  const report = `${measured.stdout}${measured.stderr}`;
+  const covered = {};
+  for (const [, file, pct] of report.matchAll(/(\S+\.js)\s*\|\s*([\d.]+)/g)) covered[file] = Number(pct) / 100;
+  const rows = written.filter((p) => !p.startsWith('test/')).map((p) => {
+    const cc = (readFileSync(p, 'utf8').match(BRANCHES) ?? []).length + 1;
+    const cov = covered[p.split('/').pop()] ?? 0;
+    return { file: p, cc, cov, crap: Math.round(cc ** 2 * (1 - cov) ** 3 + cc) };
+  });
+  const worst = rows.reduce((a, b) => (b.crap > a.crap ? b : a), { file: '—', crap: 0 });
+  const pass = worst.crap <= ceiling;
+  save(`${n}-crap.json`, JSON.stringify({ phase: 'crap', ceiling, worst, rows }, null, 2));
+  ledger.push({ n, role: 'crap', model: 'code', usd: 0, ms: Date.now() - started, out: 0 });
+  console.log(`  ${n}  CODE   ${'crap'.padEnd(6)}  ${pass ? 'green' : 'red'}     ${worst.file} ${worst.crap}/${ceiling}`);
+  return { pass, output: `CRAP ${worst.crap} in ${worst.file} is over the ceiling of ${ceiling}. Fewer branches, or more coverage.` };
+}
