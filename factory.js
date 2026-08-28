@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { prompt, phase, gate, verdict, rejected, writtenFiles, commit, costs, crap, TESTS } from './util.js';
+import { prompt, phase, panel, gate, verdict, rejected, writtenFiles, commit, costs, crap, TESTS } from './util.js';
 
 const goal = process.argv[2] ?? 'Implement the tennis kata';
 const GATE = process.argv[3];
@@ -7,6 +7,11 @@ const PLANNER = 'claude-sonnet-5';
 const BUILDER = 'claude-haiku-4-5';
 const REVIEWER = 'claude-sonnet-5';
 const MAX_REPAIR_TRIES = 3;
+const LENSES = [
+  'correctness — does the implementation do what the plan says?',
+  'edge cases — what does the test suite fail to cover?',
+  'the goal — is anything the goal asks for missing?',
+];
 
 console.log(`mini-factory · ${goal}
   Gate: ${GATE ?? 'npm test'}
@@ -15,22 +20,24 @@ console.log(`mini-factory · ${goal}
 const plan = phase('plan', PLANNER, prompt('planner.prompt', { goal }));
 phase('build', BUILDER, prompt('builder.prompt', { goal, plan, tests: TESTS }));
 
-function check() {
+async function check() {
   const result = gate(GATE);
   if (!result.pass) return result;
-  const review = phase('review', REVIEWER, prompt('reviewer.prompt', { goal, plan, files: writtenFiles() }));
-  const pass = !/^\s*VERDICT:\s*revise/im.test(review);
-  verdict(pass, review);
-  if (!pass) return { pass, output: review };
+  const files = writtenFiles();
+  const reviews = await panel('review', REVIEWER, LENSES.map((lens) =>
+    prompt('reviewer.prompt', { goal, plan, files, lens })));
+  const ships = reviews.filter((r) => !/^\s*VERDICT:\s*revise/im.test(r)).length;
+  verdict(ships, reviews);
+  if (ships <= reviews.length / 2) return { pass: false, output: reviews.join('\n\n---\n\n') };
   const risk = crap();
-  return risk.pass ? { pass: true, output: review } : risk;
+  return risk.pass ? { pass: true, output: reviews.join('\n\n---\n\n') } : risk;
 }
 
-let result = check();
+let result = await check();
 for (let round = 1; !result.pass && round <= MAX_REPAIR_TRIES; round++) {
   console.log('  ↩  repair loop');
   phase('build', BUILDER, prompt('builder.prompt', { goal, plan, tests: TESTS, feedback: rejected(result.output) }));
-  result = check();
+  result = await check();
 }
 
 if (result.pass) commit(goal, result.output);
