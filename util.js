@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -93,9 +93,34 @@ function writeFiles(answer) {
   console.log(`      ${written.join(', ')}`);
 }
 
-export function verdict(pass, text) {
-  const reason = text.split('\n').slice(1).find((line) => line.trim()) ?? '';
-  console.log(`      ${pass ? 'ship' : 'revise'}${reason ? ` — ${reason.trim().slice(0, 76)}` : ''}`);
+export function verdict(ships, reviews) {
+  const dissent = reviews.find((r) => /^\s*VERDICT:\s*revise/im.test(r));
+  const reason = dissent?.split('\n').slice(1).find((l) => l.trim())?.trim().slice(0, 60) ?? '';
+  console.log(`      ${ships}/${reviews.length} ship${reason ? `  ·  dissent: ${reason}` : ''}`);
+}
+
+function ask(model, text) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('claude', ['-p', text, '--tools', '', '--output-format', 'json', '--model', model]);
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { err += d; });
+    child.on('close', (code) => (code === 0 ? resolve(out) : reject(new Error(err))));
+  });
+}
+
+export async function panel(role, model, prompts) {
+  const answers = await Promise.all(prompts.map((text) => ask(model, text)));
+  return answers.map((stdout, i) => {
+    const n = next();
+    save(`${n}-${role}.prompt.md`, prompts[i]);
+    const { result, total_cost_usd = 0, duration_ms = 0, usage = {} } = JSON.parse(stdout);
+    ledger.push({ n, role, model, usd: total_cost_usd, ms: duration_ms, out: usage.output_tokens ?? 0 });
+    save(`${n}-${role}.json`, JSON.stringify({ phase: role, model, usd: total_cost_usd, usage, answer: result.trim() }, null, 2));
+    console.log(`  ${n}  AGENT  ${role.padEnd(6)}  ${model}`);
+    return result.trim();
+  });
 }
 
 export function gate(command = 'npm test') {
