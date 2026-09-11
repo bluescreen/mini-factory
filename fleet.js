@@ -26,6 +26,52 @@ const journalDir = resolve(repo, '..', 'journal');
 mkdirSync(journalDir, { recursive: true });
 const boxes = names.map((name) => ({ name, dir: addWorktree(repo, RUN, name), log: `${RUN}-${name}.log` }));
 
+function row(c) {
+  return {
+    name: c.name,
+    log: c.log ?? null,
+    dir: c.dir ?? null,
+    ok: c.ok ?? null,
+    dod: c.dod ?? null,
+    ms: c.ms ?? null,
+    head: c.head ?? null,
+    usd: Number.isFinite(c.usd) ? c.usd : null,
+    branch: c.branch ?? `factory/${RUN}/${c.name}`,
+    phases: (c.phases ?? []).map(({ n, role, model, usd, ms, läuft, par }) => ({ n, role, model, usd, ms, par: par === true, läuft: läuft ?? false })),
+    gate: c.gate ?? null,
+    dodItems: c.dodItems ?? [],
+  };
+}
+
+function liveRows() {
+  return boxes.map(({ name, dir, log }) => {
+    const led = ledgerOf(dir);
+    return row({
+      name,
+      log,
+      dir,
+      usd: led ? led.usd : Infinity,
+      ms: led ? led.ms : null,
+      phases: led ? led.phases : [],
+      gate: gateOf(led && led.adw),
+      branch: branchOf(dir),
+    });
+  });
+}
+
+function writeJournal(status, rows, winner = null) {
+  writeFileSync(resolve(journalDir, `${RUN}.json`), JSON.stringify({
+    run: RUN,
+    goal: plan.goal,
+    at: new Date().toISOString(),
+    status,
+    cap: plan.cap ?? null,
+    dodPlan: plan.dod ?? [],
+    winner,
+    candidates: rows,
+  }, null, 2) + '\n');
+}
+
 function runOne({ name, dir, log }) {
   return new Promise((done) => {
     const out = createWriteStream(resolve(journalDir, log));
@@ -86,7 +132,10 @@ function dodOf(dir) {
   return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
 }
 
+const ticker = setInterval(() => writeJournal('läuft', liveRows()), 1500);
+writeJournal('läuft', liveRows());
 const candidates = await Promise.all(boxes.map(runOne));
+clearInterval(ticker);
 const priced = candidates.map((c) => {
   const receipt = c.ok ? dodCheck(c.dir, plan.dod) : null;
   const led = ledgerOf(c.dir);
@@ -111,6 +160,10 @@ const winner = priced.filter((c) => c.ok && c.dod).sort((a, b) => a.usd - b.usd)
 console.log(winner
   ? `\n  Sieger: ${winner.name} — billigster grüner Kandidat ($${winner.usd.toFixed(4)})`
   : '\n  Kein Kandidat, der das DoD erfüllt.');
+
+clearInterval(ticker);
+writeJournal('fertig', priced.map(row), winner ? winner.name : null);
+console.log(`  Journal: .runs/journal/${RUN}.json`);
 
 if (plan.teardown !== false) {
   for (const c of priced) dropWorktree(repo, c.dir);
