@@ -1,0 +1,24 @@
+Goal: {{goal}}
+
+Plan from the planning phase:
+
+{{plan}}
+
+The build phase wrote these files, and the test suite passes:
+
+{{files}}
+
+{{grading}}
+
+Look for requirements from the goal that are missing, edge cases the tests do
+not cover, and assumptions that are wrong rather than merely untested.
+
+Answer with a single line first:
+
+VERDICT: ship
+or
+VERDICT: revise
+
+Default to ship. Answer revise only if something the goal asks for is missing or
+wrong. Style, naming, extra tests and nice-to-haves are not reasons to revise.
+If you answer revise, list the concrete changes below the verdict, one per line.
