@@ -26,9 +26,13 @@ mkdirSync(journalDir, { recursive: true });
 const boxes = names.map((name) => ({ name, dir: addWorktree(repo, RUN, name), log: `${RUN}-${name}.log` }));
 
 function runOne({ name, dir, log }) {
-  const run = spawnSync('node', [resolve(HOME, 'candidate.js'), dir, goal], { encoding: 'utf8', env: process.env });
-  writeFileSync(resolve(journalDir, log), (run.stdout ?? '') + (run.stderr ?? ''));
-  return { name, dir, log, ok: run.status === 0 };
+  return new Promise((done) => {
+    const out = createWriteStream(resolve(journalDir, log));
+    const child = spawn('node', [resolve(HOME, 'candidate.js'), dir, goal], { stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
+    child.stdout.pipe(out, { end: false });
+    child.stderr.pipe(out, { end: false });
+    child.on('exit', (code) => { out.end(); done({ name, dir, log, ok: code === 0 }); });
+  });
 }
 
 // Die Schlussrechnung gibt es erst am Ende. Wer währenddessen wissen will, wo
