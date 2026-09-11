@@ -1,0 +1,9 @@
+Goal: {{goal}}
+
+{{binding}}
+
+Write a short specification and implementation plan: the public API, the data
+structures, the steps, the edge cases, and which files to write. JavaScript ESM
+only — .js files under src/, import/export, no other language and no other
+runtime. At most 20 lines. No code, no questions and no closing remarks — this
+plan is committed as PLAN.md, nobody answers it.
