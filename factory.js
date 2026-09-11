@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { prompt, phase, gate, verdict, writtenFiles, rejected, crap, TESTS, SUITE, BINDING, GRADING } from './util.js';
+import { prompt, phase, gate, verdict, rejected, writtenFiles, commit, costs, crap, TESTS, SUITE, BINDING, GRADING } from './util.js';
 
 const goal = process.argv[2] ?? 'Implement the tennis kata';
 const GATE = process.argv[3];
@@ -8,6 +8,16 @@ const BUILDER = 'claude-haiku-4-5';
 const REVIEWER = 'claude-sonnet-5';
 const MAX_REPAIR_TRIES = 3;
 
+if (process.env.ANTHROPIC_BASE_URL) {
+  const teuer = [['planner', PLANNER], ['builder', BUILDER], ['reviewer', REVIEWER]].filter(([, m]) => !m.includes('/'));
+  if (teuer.length) {
+    console.error(`\n  ⛔ Gateway gesetzt, aber ${teuer.map(([r]) => r).join(', ')} fährt eine Anthropic-Abkürzung:`);
+    for (const [rolle, modell] of teuer) console.error(`       ${rolle.padEnd(9)} ${modell}`);
+    console.error('     Über ein Gateway kostet die dann Frontier-Preise. Setz einen Slug, etwa');
+    console.error('     PLANNER_MODEL=google/gemini-3.6-flash — oder nimm ANTHROPIC_BASE_URL raus.\n');
+    process.exit(1);
+  }
+}
 
 console.log(`mini-factory · ${goal}
   Gate: ${GATE ?? 'npm test'}${SUITE}
@@ -34,7 +44,9 @@ for (let round = 1; !result.pass && round <= MAX_REPAIR_TRIES; round++) {
   result = check();
 }
 
-console.log(`
-  ${result.pass ? '✓' : '✗'}
-`);
+if (result.pass) commit(goal, plan, result.output);
+
+costs();
+
+console.log(`\n  ${result.pass ? '✓' : '✗'}\n`);
 process.exit(result.pass ? 0 : 1);
