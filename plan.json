@@ -1,0 +1,12 @@
+{
+  "goal": "Implement a FizzBuzz function",
+  "runs": 4,
+  "cap": 2,
+  "placement": "box",
+  "teardown": true,
+  "dod": [
+    "fizzbuzz",
+    "multiples of three",
+    "multiples of five"
+  ]
+}
