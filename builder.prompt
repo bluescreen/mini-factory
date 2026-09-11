@@ -1,0 +1,21 @@
+Goal: {{goal}}
+
+Specification and plan from the previous phase:
+
+{{plan}}
+
+{{feedback}}
+
+{{tests}}
+
+Write in JavaScript ESM only (.js files, import/export), and return the complete
+set of files every time, not just the ones you changed.
+
+Return every file you write as a fenced code block labelled with its path:
+
+```js path=src/example.js
+export function example() {}
+```
+
+Every file MUST carry a path label — a block without one is discarded.
+No prose outside the code blocks.
