@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.runId }}
+spec:
+  # Kein stiller zweiter Anlauf: ein fehlgeschlagener Lauf wird nicht wiederholt,
+  # sonst zahlst du zweimal für denselben Fehler.
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: factory
+          image: {{ .Values.image }}
+          env:
+            - name: GOAL
+              value: {{ .Values.goal | quote }}
+            - name: REPO_URL
+              value: {{ .Values.repoURL | quote }}
+            - name: BRANCH
+              value: {{ .Values.branch | quote }}
+            - name: BUDGET_CAP
+              value: {{ .Values.budgetCap | quote }}
+            - name: ANTHROPIC_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecret }}
+                  key: base-url
+            - name: ANTHROPIC_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.credentialsSecret }}
+                  key: token
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              apt-get update >/dev/null
+              apt-get install -y --no-install-recommends git >/dev/null
+              npm install -g @anthropic-ai/claude-code@{{ .Values.claudeVersion }} >/dev/null
+              git clone --depth 1 --branch "$BRANCH" "$REPO_URL" /box
+              cd /box
+              git config user.email factory@box.local
+              git config user.name mini-factory
+              node factory.js "$GOAL"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 2Gi

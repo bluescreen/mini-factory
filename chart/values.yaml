@@ -1,0 +1,24 @@
+# Die Vorlage hat genau eine Bedienfläche, und das ist diese Datei.
+#
+# Ein Lauf entsteht, indem du runId änderst und committest. Die Id ist eindeutig
+# und bleibt, was sie ist: ein Job-Name, den es schon gab, wird nicht neu
+# gestartet, sondern gar nicht.
+runId: r1
+
+goal: Implement the tennis kata
+repoURL: https://github.com/bluescreen/mini-factory.git
+branch: solution
+
+# Der Deckel aus Stück 10, hier als Umgebung. Ohne ihn läuft der Job, bis das
+# Konto es merkt.
+budgetCap: "2"
+
+# Kein Registry, kein Pull-Secret, keine Pipeline: ein Standard-Node-Image, und
+# der CLI wird beim Start in einer festgenagelten Version installiert. Das
+# kostet eine Minute Startzeit und spart den ganzen Bauweg.
+image: node:24.16.0-bookworm-slim
+claudeVersion: 2.1.250
+
+# Das Credential steht NICHT in dieser Datei und in keiner anderen im Repo.
+# Der Job zeigt auf ein Secret, das jemand außerhalb von git anlegt.
+credentialsSecret: mini-factory-credentials
