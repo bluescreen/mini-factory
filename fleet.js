@@ -3,6 +3,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, createWriteStream } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { lint, report } from './lint.js';
+import { dodCheck } from './dod.js';
 import { appRepo, addWorktree, dropWorktree } from './repo.js';
 
 const HOME = dirname(resolve(process.argv[1]));
@@ -80,9 +81,14 @@ function branchOf(dir) {
   catch { return null; }
 }
 
+function dodOf(dir) {
+  const file = resolve(dir, 'dod.json');
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+}
 
 const candidates = await Promise.all(boxes.map(runOne));
 const priced = candidates.map((c) => {
+  const receipt = c.ok ? dodCheck(c.dir, plan.dod) : null;
   const led = ledgerOf(c.dir);
   return {
     ...c,
@@ -90,17 +96,21 @@ const priced = candidates.map((c) => {
     ms: led ? led.ms : null,
     phases: led ? led.phases : [],
     gate: gateOf(led && led.adw),
+    dod: receipt ? receipt.ok : false,
+    dodItems: (receipt ?? dodOf(c.dir))?.items ?? [],
+    head: receipt ? receipt.head : null,
     branch: branchOf(c.dir),
   };
 });
 for (const c of priced) {
-  console.log(`   ${c.ok ? '\u2713' : '\u2717'} ${c.name.padEnd(10)} ${c.ok ? `$${c.usd.toFixed(4)}` : 'rot bei test'}`);
+  const verdict = !c.ok ? (c.gate ? 'rot bei test' : 'abgebrochen, nie am Gate') : c.dod ? `$${c.usd.toFixed(4)}` : 'grün, aber am DoD vorbei';
+  console.log(`   ${c.ok && c.dod ? '✓' : '✗'} ${c.name.padEnd(10)} ${verdict}`);
 }
 
-const winner = priced.filter((c) => c.ok).sort((a, b) => a.usd - b.usd)[0] ?? null;
+const winner = priced.filter((c) => c.ok && c.dod).sort((a, b) => a.usd - b.usd)[0] ?? null;
 console.log(winner
   ? `\n  Sieger: ${winner.name} — billigster grüner Kandidat ($${winner.usd.toFixed(4)})`
-  : '\n  Kein grüner Kandidat.');
+  : '\n  Kein Kandidat, der das DoD erfüllt.');
 
 if (plan.teardown !== false) {
   for (const c of priced) dropWorktree(repo, c.dir);
