@@ -3,9 +3,9 @@ import { prompt, phase, panel, gate, verdict, rejected, writtenFiles, commit, co
 
 const goal = process.argv[2] ?? 'Implement the tennis kata';
 const GATE = process.argv[3];
-const PLANNER = 'claude-sonnet-5';
-const BUILDER = 'claude-haiku-4-5';
-const REVIEWER = 'claude-sonnet-5';
+const PLANNER = process.env.PLANNER_MODEL ?? 'claude-sonnet-5';
+const BUILDER = process.env.BUILDER_MODEL ?? 'claude-haiku-4-5';
+const REVIEWER = process.env.REVIEWER_MODEL ?? 'claude-sonnet-5';
 const MAX_REPAIR_TRIES = 3;
 
 if (process.env.ANTHROPIC_BASE_URL) {
