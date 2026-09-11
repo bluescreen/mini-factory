@@ -97,9 +97,14 @@ for (const c of priced) {
   console.log(`   ${c.ok ? '\u2713' : '\u2717'} ${c.name.padEnd(10)} ${c.ok ? `$${c.usd.toFixed(4)}` : 'rot bei test'}`);
 }
 
+const winner = priced.filter((c) => c.ok).sort((a, b) => a.usd - b.usd)[0] ?? null;
+console.log(winner
+  ? `\n  Sieger: ${winner.name} — billigster grüner Kandidat ($${winner.usd.toFixed(4)})`
+  : '\n  Kein grüner Kandidat.');
+
 if (plan.teardown !== false) {
   for (const c of priced) dropWorktree(repo, c.dir);
   console.log(`  Worktrees abgeräumt — die Branches factory/${RUN}/* bleiben in ${repo}.\n`);
 }
 
-process.exit(priced.some((c) => c.ok) ? 0 : 1);
+process.exit(winner ? 0 : 1);
