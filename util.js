@@ -9,6 +9,18 @@ mkdirSync(DIR, { recursive: true });
 let step = 0;
 const next = () => String(++step).padStart(2, '0');
 const ledger = [];
+const CAP = Number(process.env.BUDGET_CAP ?? 0);
+
+export function spent() {
+  return ledger.reduce((sum, row) => sum + row.usd, 0);
+}
+
+export function capped(role) {
+  if (!CAP || spent() < CAP) return false;
+  console.log(`\n  ⛔ Deckel erreicht: $${spent().toFixed(4)} von $${CAP} — ${role} startet nicht.`);
+  return true;
+}
+
 let written = [];
 
 export const hasTests = () => { try { return readdirSync('test').some((f) => f.endsWith('.js')); } catch { return false; } };
@@ -62,6 +74,7 @@ export const prompt = (file, vars) =>
     .replace(/\{\{\w+\}\}/g, '');
 
 export function phase(role, model, text) {
+  if (capped(role)) process.exit(1);
   const n = next();
   save(`${n}-${role}.prompt.md`, text);
   const { status, stdout, stderr } = spawnSync('claude', ['-p', text, '--tools', '', '--output-format', 'json', '--model', model], { encoding: 'utf8', maxBuffer: 1 << 25 });
@@ -115,6 +128,7 @@ function ask(model, text) {
 }
 
 export async function panel(role, model, prompts) {
+  if (capped(role)) process.exit(1);
   const answers = await Promise.all(prompts.map((text) => ask(model, text)));
   return answers.map((stdout, i) => {
     const n = next();
