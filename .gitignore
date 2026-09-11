@@ -1,0 +1,3 @@
+.adw/
+node_modules/
+.env*
